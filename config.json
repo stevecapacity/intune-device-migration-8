@@ -1,0 +1,18 @@
+{
+    "localPath":"C:\\ProgramData\\IntuneMigration",
+    "logPath":"C:\\ProgramData\\Microsoft\\IntuneManagementExtension\\Logs",
+    "regPath":"HKLM\\SOFTWARE\\IntuneMigration",
+    "sourceTenant": {
+        "clientId":"<clientId>",
+        "clientSecret":"<clientSecret>",
+        "tenantName":"<tenantName>.com"
+    },
+    "targetTenant":{
+        "clientId":"<clientId>",
+        "clientSecret":"<clientSecret>",
+        "tenantName":"<tenantName>.com"
+    },
+    "groupTag":"<groupTag>",
+    "bitlocker":"<migrate/decrypt>",
+    "SCCM":false
+}
