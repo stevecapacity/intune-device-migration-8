@@ -554,7 +554,7 @@ else
 if($pc.mdm -eq $true)
 {
     log "Removing MDM enrollment..."
-    $enrollmentPath = "HKLM:\SOFTWARE\Microsoft\Enrollments"
+    $enrollmentPath = "HKLM:\SOFTWARE\Microsoft\Enrollments\"
     $enrollments = Get-ChildItem -Path $enrollmentPath
     foreach($enrollment in $enrollments)
     {
