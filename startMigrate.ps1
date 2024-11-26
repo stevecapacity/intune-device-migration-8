@@ -39,13 +39,17 @@ function msGraphAuthenticate()
         [Parameter(Mandatory=$true)]
         [string]$clientSecret
     )
-    $headers = New-Object "System.Collection.Generic.Dictionary[[String],[String]]"
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Content-Type", "application/x-www-form-urlencoded")
     $body = "grant_type=client_credentials&scope=https://graph.microsoft.com/.default"
-    $body += -join ("&client_id=", $clientId, "&client_secret=", $clientSecret)
-    $response = Invoke-RestMethod "https://login.microsoftonline.com/$tenantName/oauth2/v2.0/token" -Method POST -Headers $headers -Body $body
+    $body += -join ("&client_id=" , $clientId, "&client_secret=", $clientSecret)
+    $response = Invoke-RestMethod "https://login.microsoftonline.com/$tenantName/oauth2/v2.0/token" -Method 'POST' -Headers $headers -Body $body
+    # Get token from OAuth response
+
     $token = -join ("Bearer ", $response.access_token)
-    $headers = New-Object "System.Collection.Generic.Dictionary[[String],[String]]"
+
+    # Reinstantiate headers
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Authorization", $token)
     $headers.Add("Content-Type", "application/json")
     $headers = @{'Authorization'="$($token)"}
@@ -150,19 +154,20 @@ else
 
 # Check Microsoft account connection registry key
 log "Checking Microsoft account connection registry key..."
-$accountConnectionPath = "HKLM:\SOFTWARE\Microsoft\PolicyManager\current\device\Accounts"
+$accountConnectionPath = "HKLM\SOFTWARE\Microsoft\PolicyManager\current\device\Accounts"
+$accountConnectionKey = "Registry::$accountConnectionPath"
 $accountConnectionName = "AllowMicrosoftAccountConnection"
-$accountConnectionValue = Get-ItemProperty -Path $accountConnectionPath -Name $accountConnectionName -ErrorAction SilentlyContinue
+$accountConnectionValue = Get-ItemProperty -Path $accountConnectionKey -Name $accountConnectionName -ErrorAction SilentlyContinue
 if(!($accountConnectionValue))
 {
     log "Microsoft account connection registry key not found; creating..."
-    New-ItemProperty -Path $accountConnectionPath -Name $accountConnectionName -Value 1 -Force
+    reg.exe add $accountConnectionPath /v $accountConnectionName /t REG_DWORD /d 1 /f | Out-Host
     log "Microsoft account connection registry key created"
 }
 elseif($accountConnectionValue -ne 1)
 {
     log "Microsoft account connection registry key found; updating..."
-    Set-ItemProperty -Path $accountConnectionPath -Name $accountConnectionName -Value 1
+    reg.exe add $accountConnectionPath /v $accountConnectionName /t REG_DWORD /d 1 /f | Out-Host
     log "Microsoft account connection registry key updated"
 }
 else
@@ -221,8 +226,19 @@ log "Checking for Azure AD join..."
 if($azureAdJoined -eq "Yes")
 {
     log "$hostname is Azure AD joined"
-    $azureAdId = ((Get-ChildItem -Path $certPath | Where-Object {$_.Issuer -match $azureIssuer} | Select-Object Subject).Subject).TrimStart("CN=")
-    log "Azure AD ID: $azureAdId"
+    $azureAdDeviceId = ((Get-ChildItem -Path $certPath | Where-Object {$_.Issuer -match $azureIssuer} | Select-Object Subject).Subject).TrimStart("CN=")
+    try 
+    {
+        $azureAdId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/devices?$filter=deviceId eq '$azureAdDeviceId'" -Headers $sourceHeaders).value.id
+        log "Azure AD ID: $azureAdId"
+    }
+    catch 
+    {
+        $message = $_.Exception.Message
+        log "Failed to get Azure AD ID. Error: $message"
+        $azureAdId = $null
+        log "Azure AD ID: $azureAdId"
+    }
 }
 else
 {
@@ -293,7 +309,7 @@ if($domainJoined -eq "NO")
     {
         $upn = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\IdentityStore\Cache\$($SID)\IdentityCache\$($SID)" -Name "UserName")
         log "System is Entra ID Joined - detected IdentityCache UPN value: $upn. Querying graph..."
-        $entraUserId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/users/$($upn)" -Headers $headers).id
+        $entraUserId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/users/$($upn)" -Headers $sourceHeaders).id
         if($entraUserId)
         {
             log "Successfully obtained Entra User ID: $entraUserId."
