@@ -564,7 +564,7 @@ if($pc.mdm -eq $true)
         if($key)
         {
             log "Removing MDM enrollment $($enrollPath)..."
-            Remove-Item -Path $enrollPath -Recure
+            Remove-Item -Path $enrollPath -Recurse
             log "MDM enrollment removed successfully."
         }
         else
