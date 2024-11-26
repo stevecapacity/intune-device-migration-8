@@ -3,14 +3,14 @@
     "logPath":"C:\\ProgramData\\Microsoft\\IntuneManagementExtension\\Logs",
     "regPath":"HKLM\\SOFTWARE\\IntuneMigration",
     "sourceTenant": {
-        "clientId":"<clientId>",
+        "clientId":"<clientID>",
         "clientSecret":"<clientSecret>",
-        "tenantName":"<tenantName>.com"
+        "tenantName":"<tenantName>"
     },
     "targetTenant":{
-        "clientId":"<clientId>",
+        "clientId":"<clientID>",
         "clientSecret":"<clientSecret>",
-        "tenantName":"<tenantName>.com"
+        "tenantName":"<tenantName>"
     },
     "groupTag":"<groupTag>",
     "bitlocker":"<migrate/decrypt>",
