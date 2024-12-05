@@ -11,7 +11,7 @@ NOTES
 Steve Weiner
 .CONTRIBUTORS
     Logan Lautt
-    Jesse Weimerr
+    Jesse Weimer
 #>
 
 $ErrorActionPreference = "SilenctlyContinue"
