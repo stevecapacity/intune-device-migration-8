@@ -133,7 +133,7 @@ log "Checking configuration file for destination tenant..."
 if([string]::IsNullOrEmpty($config.targetTenant.tenantName))
 {
     log "Destination tenant not found in configuration file"
-    exit
+    $targetHeaders = $null
 }
 else
 {
