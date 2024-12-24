@@ -14,6 +14,8 @@ Steve Weiner
     Jesse Weimer
 #>
 
+Add-Type -AssemblyName System.Windows.Forms
+
 $ErrorActionPreference = "SilenctlyContinue"
 
 # log function
@@ -148,7 +150,8 @@ else
     {
         $message = $_.Exception.Message
         log "Failed to authenticate to destination tenant: $message"
-        exit
+        [System.Windows.Forms.MessageBox]::Show("Failed to authenticate to destination tenant: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        exit 1
     }
 }
 
@@ -302,36 +305,27 @@ foreach($x in $pc.Keys)
     
 # If PC is NOT domain joined, get UPN from cache
 log "Attempting to get current user's UPN..."
-if($domainJoined -eq "NO")
+# If PC is Azure AD joined, get user ID from Graph
+if($azureAdJoined -eq "YES")
 {
-    # If PC is Azure AD joined, get user ID from Graph
-    if($azureAdJoined -eq "YES")
+    $upn = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\IdentityStore\Cache\$($SID)\IdentityCache\$($SID)" -Name "UserName")
+    log "System is Entra ID Joined - detected IdentityCache UPN value: $upn. Querying graph..."
+    $entraUserId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/users/$($upn)" -Headers $sourceHeaders).id
+    if($entraUserId)
     {
-        $upn = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\IdentityStore\Cache\$($SID)\IdentityCache\$($SID)" -Name "UserName")
-        log "System is Entra ID Joined - detected IdentityCache UPN value: $upn. Querying graph..."
-        $entraUserId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/users/$($upn)" -Headers $sourceHeaders).id
-        if($entraUserId)
-        {
-            log "Successfully obtained Entra User ID: $entraUserId."
-            log "Entra ID: $entraUserId"
-        }
-        else
-        {
-            log "Could not obtain Entra User ID from UPN value: $upn."
-            $entraUserId = $null
-            log "Entra ID: $entraUserId"
-        }
+        log "Successfully obtained Entra User ID: $entraUserId."
+        log "Entra ID: $entraUserId"
     }
     else
     {
-        log "System is not domain or Entra joined - setting UPN and Entra User ID values to Null."
-        $upn = $null
+        log "Could not obtain Entra User ID from UPN value: $upn."
         $entraUserId = $null
+        log "Entra ID: $entraUserId"
     }
 }
 else
 {
-    log "System is domain joined - setting UPN and Entra User ID values to Null."
+    log "System is not Entra joined - setting UPN and Entra User ID values to Null."
     $upn = $null
     $entraUserId = $null
 }
@@ -366,38 +360,94 @@ foreach($x in $currentUser.Keys)
     }
 }
 
-# If target tenant headers exist, get new user object
-$newHeaders = ""
-if($targetHeaders)
+
+
+# USER SIGN IN TO VERIFY CREDENTIALS AND GET TARGET TENANT SID
+$installedNuget = Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue
+if(-not($installedNuget))
 {
-    $tenant = $config.targetTenant.tenantName
-    log "Target tenant headers found.  Getting new user object from $tenant tenant..."
-    $newHeaders = $targetHeaders
+    log "NuGet package provider not installed.  Installing..."
+    Install-PackageProvider -Name NuGet -Force
+    log "NuGet package provider installed successfully."
 }
 else
 {
-    $tenant = $config.sourceTenant.tenantName
-    log "Target tenant headers not found.  Getting new user object from $tenant tenant..."
-    $newHeaders = $sourceHeaders
+    log "NuGet package provider already installed."
 }
-$fullUPN = $($currentUser.upn)
-$split = $fullUPN -split "(@)", 2
-$split[0] += $split[1].Substring(0,1)
-$split[1] += $split[1].Substring(1)
-$userLookup = $split[0]
-log "Looking up user where UPN starts with: $userLookup..."
-$newUserObject = Invoke-RestMethod -Method GET -Uri "https://graph.microsoft.com/beta/users?`$filter=startsWith(userPrincipalName,'$userLookup')" -Headers $newHeaders
-# if new user graph request is successful, set new user object
-if($null -ne $newUserObject.value)
+# Check for Az.Accounts module
+$modules = ("Az.Accounts","RunAsUser")
+foreach($module in $modules)
 {
-    log "New user found in $tenant tenant."
-    $newUser = @{
-        upn = $newUserObject.value.userPrincipalName
-        entraUserId = $newUserObject.value.id
-        SAMName = $newUserObject.value.userPrincipalName.Split("@")[0]
-        SID = $newUserObject.value.securityIdentifier
+    $installedModule = Get-InstalledModule -Name $module -ErrorAction SilentlyContinue
+    if(-not($installedModule))
+    {
+        log "$module module not installed.  Installing..."
+        Install-Module -Name $module -Force
+        log "$module module installed successfully."
     }
-    # Write new user object to registry
+    else
+    {
+        log "$module module already installed."
+    }
+}
+$scriptBlock = {
+    Import-Module Az.Accounts
+
+    #Get Token form OAuth
+    Clear-AzContext -Force
+    Update-AzConfig -EnableLoginByWam $false -LoginExperienceV2 Off
+    Connect-AzAccount
+    $theToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com/"
+
+    #Get Token form OAuth
+    $token = -join("Bearer ", $theToken.Token)
+
+    #Reinstantiate headers
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $headers.Add("Authorization", $token)
+    $headers.Add("Content-Type", "application/json")
+
+    $newUserObject = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/me" -Headers $headers -Method "GET"
+
+    $newUser = @{
+        upn = $newUserObject.userPrincipalName
+        entraUserId = $newUserObject.id
+        SAMName = $newUserObject.userPrincipalName.Split("@")[0]
+        SID = $newUserObject.securityIdentifier
+    } | ConvertTo-JSON
+
+    $newUser | Out-File "C:\Users\Public\Documents\newUserInfo.json"
+}
+$newUserPath = "C:\Users\Public\Documents\newUserInfo.json"
+$timeout = 300
+$checkInterval = 5
+$elapsedTime = 0
+Invoke-AsCurrentUser -ScriptBlock $scriptBlock -UseWindowsPowerShell
+while($elapsedTime -lt $timeout)
+{
+    if(Test-Path $newUserPath)
+    {
+        log "New user found.  Continuing with script..."
+        $elapsedTime = $timeout
+        break
+    }
+    else
+    {
+        log "New user info not present.  Waiting for user to sign in..."
+        Start-Sleep -Seconds $checkInterval
+        $elapsedTime += $checkInterval
+    }
+}
+if(Test-Path $newUserPath)
+{
+    $newUserInfo = Get-Content -Path "C:\Users\Public\Documents\newUserInfo.json" | ConvertFrom-JSON
+
+    $newUser = @{
+        entraUserID = $newUserInfo.entraUserId
+        SID = $newUserInfo.SID
+        SAMName = $newUserInfo.SAMName
+        UPN = $newUserInfo.upn
+    }
     foreach($x in $newUser.Keys)
     {
         $newUserName = "NEW_$($x)"
@@ -407,7 +457,7 @@ if($null -ne $newUserObject.value)
             log "Writing $($newUserName) with value $($newUserValue)..."
             try
             {
-                reg.exe add $config.regPath /v $newUserName /t REG_SZ /d $newUserValue /f | Out-Null
+                reg.exe add "HKLM\SOFTWARE\IntuneMigration" /v $newUserName /t REG_SZ /d $newUserValue /f | Out-Null
                 log "Successfully wrote $($newUserName) with value $($newUserValue)."
             }
             catch
@@ -417,125 +467,17 @@ if($null -ne $newUserObject.value)
             }
         }
     }
+    Write-Host "User found. Continuing with script..."
+    Disable-ScheduledTask -TaskName "userFinder"
+    Remove-Item -Path $newUserPath -Force -Recurse
 }
 else
 {
-    log "New user not found in $($config.targetTenant.tenantName) tenant.  Prompting user to sign in..."
-    
-    $installedNuget = Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue
-    if(-not($installedNuget))
-    {
-        log "NuGet package provider not installed.  Installing..."
-        Install-PackageProvider -Name NuGet -Force
-        log "NuGet package provider installed successfully."
-    }
-    else
-    {
-        log "NuGet package provider already installed."
-    }
-    # Check for Az.Accounts module
-    $modules = ("Az.Accounts","RunAsUser")
-    foreach($module in $modules)
-    {
-        $installedModule = Get-InstalledModule -Name $module -ErrorAction SilentlyContinue
-        if(-not($installedModule))
-        {
-            log "$module module not installed.  Installing..."
-            Install-Module -Name $module -Force
-            log "$module module installed successfully."
-        }
-        else
-        {
-            log "$module module already installed."
-        }
-    }
-    $scriptBlock = {
-        Import-Module Az.Accounts
-
-        #Get Token form OAuth
-        Clear-AzContext -Force
-        Update-AzConfig -EnableLoginByWam $false -LoginExperienceV2 Off
-        Connect-AzAccount
-        $theToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com/"
-
-        #Get Token form OAuth
-        $token = -join("Bearer ", $theToken.Token)
-
-        #Reinstantiate headers
-        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $headers.Add("Authorization", $token)
-        $headers.Add("Content-Type", "application/json")
-
-        $newUserObject = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/me" -Headers $headers -Method "GET"
-
-        $newUser = @{
-            upn = $newUserObject.userPrincipalName
-            entraUserId = $newUserObject.id
-            SAMName = $newUserObject.userPrincipalName.Split("@")[0]
-            SID = $newUserObject.securityIdentifier
-        } | ConvertTo-JSON
-
-        $newUser | Out-File "C:\Users\Public\Documents\newUserInfo.json"
-    }
-    $newUserPath = "C:\Users\Public\Documents\newUserInfo.json"
-    $timeout = 300
-    $checkInterval = 5
-    $elapsedTime = 0
-    Invoke-AsCurrentUser -ScriptBlock $scriptBlock -UseWindowsPowerShell
-    while($elapsedTime -lt $timeout)
-    {
-        if(Test-Path $newUserPath)
-        {
-            log "New user found.  Continuing with script..."
-            $elapsedTime = $timeout
-            break
-        }
-        else
-        {
-            log "New user info not present.  Waiting for user to sign in..."
-            Start-Sleep -Seconds $checkInterval
-            $elapsedTime += $checkInterval
-        }
-    }
-    if(Test-Path $newUserPath)
-    {
-        $newUserInfo = Get-Content -Path "C:\Users\Public\Documents\newUserInfo.json" | ConvertFrom-JSON
-
-        $newUser = @{
-            entraUserID = $newUserInfo.entraUserId
-            SID = $newUserInfo.SID
-            SAMName = $newUserInfo.SAMName
-            UPN = $newUserInfo.upn
-        }
-        foreach($x in $newUser.Keys)
-        {
-            $newUserName = "NEW_$($x)"
-            $newUserValue = $($newUser[$x])
-            if(![string]::IsNullOrEmpty($newUserValue))
-            {
-                log "Writing $($newUserName) with value $($newUserValue)..."
-                try
-                {
-                    reg.exe add "HKLM\SOFTWARE\IntuneMigration" /v $newUserName /t REG_SZ /d $newUserValue /f | Out-Null
-                    log "Successfully wrote $($newUserName) with value $($newUserValue)."
-                }
-                catch
-                {
-                    $message = $_.Exception.Message
-                    log "Failed to write $($newUserName) with value $($newUserValue).  Error: $($message)."
-                }
-            }
-        }
-        Write-Host "User found. Continuing with script..."
-        Disable-ScheduledTask -TaskName "userFinder"
-        Remove-Item -Path $newUserPath -Force -Recurse
-    }
-    else
-    {
-        log "New user not found.  Exiting script."
-        exit 1
-    }
+    log "User not found.  Exiting script."
+    [System.Windows.Forms.MessageBox]::Show("Please enter the VM name and select the Windows 11 version", "Hyper Hyper-V", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    exit 1
 }
+
 
 # remove MDM certificate
 if($intuneCert)
@@ -624,6 +566,7 @@ foreach($task in $tasks)
             $message = $_.Exception.Message
             log "Failed to set $($task) task. Error: $message"
             log "Exiting script."
+            [System.Windows.Forms.MessageBox]::Show("Failed to set $($task) task. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             exit 1
         }
     }
@@ -643,7 +586,7 @@ if($pc.azureAdJoined -eq "YES")
         $message = $_.Exception.Message
         log "Failed to leave Azure AD. Error: $message"
         log "Exiting script."
-        exit 1
+        [System.Windows.Forms.MessageBox]::Show("Failed to leave Azure AD. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 }
 else
@@ -705,7 +648,7 @@ if($pc.domainJoined -eq "YES")
         $message = $_.Exception.Message
         log "Failed to unjoin $hostname from domain. Error: $message"
         log "Exiting script."
-        exit 1
+        [System.Windows.Forms.MessageBox]::Show("Failed to unjoin $hostname from domain. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 }
 else
@@ -835,7 +778,8 @@ if($config.SCCM -eq $true)
         $message = $_.Exception.Message
         log "Failed to remove SCCM client. Error: $message"
         log "Exiting script."
-        exit 1
+        [System.Windows.Forms.MessageBox]::Show("Failed to remove SCCM client. Error :$message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        Return
     }
 }
 else
@@ -920,13 +864,13 @@ if($ppkg)
         $message = $_.Exception.Message
         log "Failed to install provisioning package. Error: $message"
         log "Exiting script."
-        exit 1
+        [System.Windows.Forms.MessageBox]::Show("Failed to install provisioning package. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 }
 else
 {
     log "Provisioning package not found."
-    exit 1
+    [System.Windows.Forms.MessageBox]::Show("Provisioning package not found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 }
 
 # Set auto logon
