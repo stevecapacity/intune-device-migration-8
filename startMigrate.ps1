@@ -827,26 +827,6 @@ else
     log "Autopilot object not found."
 }
 
-# azure ad delete
-if($pc.azureAdId)
-{
-    log "Deleting Azure AD object..."
-    try
-    {
-        Invoke-RestMethod -Method DELETE -Uri "https://graph.microsoft.com/beta/devices/$($pc.azureAdId)" -Headers $sourceHeaders
-        log "Azure AD object deleted successfully."
-    }
-    catch
-    {
-        $message = $_.Exception.Message
-        log "Failed to delete Azure AD object. Error: $message"
-    }
-}
-else
-{
-    log "Azure AD object not found."
-}
-
 # Install provisioning package
 $ppkg = (Get-ChildItem -Path $config.localPath -Filter "*.ppkg" -Recurse).FullName
 if($ppkg)
