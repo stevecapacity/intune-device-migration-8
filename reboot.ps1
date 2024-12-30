@@ -92,8 +92,13 @@ $values.PSObject.Properties | ForEach-Object {
     }
 }
 
-
-# Remove aadBrokerPlugin from profile
+if($OLD_SID -eq $NEW_SID)
+{
+    log "Old SID $($OLD_SID) and new SID $($NEW_SID) are the same. Skipping new profile creation."
+}
+else
+{
+    # Remove aadBrokerPlugin from profile
 $aadBrokerPath = (Get-ChildItem -Path "$($OLD_profilePath)\AppData\Local\Packages" -Recurse | Where-Object {$_.Name -match "Microsoft.AAD.BrokerPlugin_*"}).FullName
 if($aadBrokerPath)
 {
@@ -504,6 +509,10 @@ else
 {
     log "Machine is domain joined - skipping updateSamNameIdentityStore."
 }
+}
+
+
+
 
 # enable logon provider
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{60b78e88-ead8-445c-9cfd-0b87f74ea6cd}" /v "Disabled" /t REG_DWORD /d 0 /f | Out-Host
