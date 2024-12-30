@@ -156,7 +156,7 @@ else
 
 if(![string]::IsNullOrEmpty($groupTag))
 {
-    log "Updating group tag to $($groupTag)..."
+    log "Updating group tag to $($groupTag) for Entra Device $($entraId)..."
     $entraDeviceObject = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/devices/$entraId" -Headers $headers
     $physicalIds = $entraDeviceObject.physicalIds
     $newTag = "[OrderID]:$groupTag"
@@ -182,7 +182,7 @@ else
     log "No group tag found."
 }
 
-
+schtasks.exe /create /xml "$($config.localPath)\groupTag.xml" /tn GroupTag /f | Out-Host
 
 
 # FUNCTION: migrateBitlockerKey
@@ -313,10 +313,10 @@ foreach ($entryName in $entryNames) {
 }
 
 
-# Cleanup
+<# Cleanup
 log "Cleaning up migration files..."
 Remove-Item -Path $config.localPath -Recurse -Force
-log "Migration files cleaned up."
+log "Migration files cleaned up."#>
 
 # Remove scheduled tasks
 log "Removing scheduled tasks..."
