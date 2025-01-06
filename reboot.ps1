@@ -309,7 +309,7 @@ function updateSamNameLogonCache()
         [string]$targetSAMName = $OLD_SAMName
     )
 
-    if($NEW_SAMName -like "$($OLD_SAMName)_*")
+    if($NEW_SAMName -like "$($OLD_SAMName)_*" -or $NEW_SAMName -like "$($OLD_SAMName).*")
     {
         log "New user is $NEW_SAMName, which is the same as $OLD_SAMName with _##### appended to the end. Removing appended characters on SamName in LogonCache registry..."
 
