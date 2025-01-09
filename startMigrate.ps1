@@ -13,10 +13,7 @@ Steve Weiner
     Logan Lautt
     Jesse Weimer
 #>
-
-Add-Type -AssemblyName System.Windows.Forms
-
-$ErrorActionPreference = "SilenctlyContinue"
+$ErrorActionPreference = "SilentlyContinue"
 
 # log function
 
@@ -150,7 +147,6 @@ else
     {
         $message = $_.Exception.Message
         log "Failed to authenticate to destination tenant: $message"
-        [System.Windows.Forms.MessageBox]::Show("Failed to authenticate to destination tenant: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         exit 1
     }
 }
@@ -184,7 +180,6 @@ else
 [string]$domainJoined = (dsregcmd.exe /status | Select-String "DomainJoined").ToString().Split(":")[1].Trim()
 [string]$certPath = "Cert:\LocalMachine\My"
 [string]$intuneIssuer = "Microsoft Intune MDM Device CA"
-[string]$azureIssuer = "MS-Organization-Access"
 [string]$autopilotRegPath = "HKLM:\SOFTWARE\Microsoft\Provisioning\Diagnostics\Autopilot"
 [string]$autopilotRegName = "CloudAssignedMdmId"
 [string]$autopilotRegValue = Get-ItemProperty -Path $autopilotRegPath -Name $autopilotRegName -ErrorAction SilentlyContinue
@@ -222,32 +217,6 @@ else
     log "Autopilot registration not found"
     $autopilotId = $null
     log "Autopilot ID: $autopilotId"
-}
-
-# Check if device is Azure AD joined
-log "Checking for Azure AD join..."
-if($azureAdJoined -eq "Yes")
-{
-    log "$hostname is Azure AD joined"
-    $azureAdDeviceId = ((Get-ChildItem -Path $certPath | Where-Object {$_.Issuer -match $azureIssuer} | Select-Object Subject).Subject).TrimStart("CN=")
-    try 
-    {
-        $azureAdId = (Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/devices?$filter=deviceId eq '$azureAdDeviceId'" -Headers $sourceHeaders).value.id
-        log "Azure AD ID: $azureAdId"
-    }
-    catch 
-    {
-        $message = $_.Exception.Message
-        log "Failed to get Azure AD ID. Error: $message"
-        $azureAdId = $null
-        log "Azure AD ID: $azureAdId"
-    }
-}
-else
-{
-    log "$hostname is not Azure AD joined"
-    $azureAdId = $null
-    log "Azure AD ID: $azureAdId"
 }
 
 # Check if device is domain joined
@@ -296,8 +265,6 @@ foreach($x in $pc.Keys)
 }
 
 # get current user info
-[string]$domainJoined = $pc.domainJoined
-[string]$azureAdJoined = $pc.azureAdJoined
 [string]$userName = (Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object UserName).UserName
 [string]$SID = (New-Object System.Security.Principal.NTAccount($userName)).Translate([System.Security.Principal.SecurityIdentifier]).Value
 [string]$profilePath = (Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($SID)" -Name "ProfileImagePath")
