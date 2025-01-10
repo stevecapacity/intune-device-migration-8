@@ -862,6 +862,9 @@ else
     log "SkipUserStatusPage not found."
 }
 
+Add-Computer -WorkGroupName "WORKGROUP"
+log "Changing workgroup to WORKGROUP"
+
 # Stop transcript and restart
 log "$($pc.hostname) will reboot in 30 seconds..."
 Stop-Transcript
