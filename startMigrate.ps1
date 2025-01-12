@@ -224,7 +224,7 @@ log "Checking for domain join..."
 if($domainJoined -eq "Yes")
 {
     log "$hostname is domain joined"
-    $localDomain = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "Domain"
+    $localDomain = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "Domain").Domain
     log "Domain: $localDomain"
 }
 else
