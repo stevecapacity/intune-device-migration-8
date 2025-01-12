@@ -48,8 +48,6 @@ else
 
 log "Waiting for migration to complete..."
 
-Start-Sleep -Seconds 300
-
 # Check context
 $context = whoami
 log "Running as $($context)"
