@@ -46,8 +46,6 @@ else
     log "$($localPath) already exists."
 }
 
-log "Waiting for migration to complete..."
-
 # Check context
 $context = whoami
 log "Running as $($context)"
