@@ -552,6 +552,7 @@ if($pc.azureAdJoined -eq "YES")
         log "Failed to leave Azure AD. Error: $message"
         log "Exiting script."
         [System.Windows.Forms.MessageBox]::Show("Failed to leave Azure AD. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Exit 1
     }
 }
 else
@@ -614,6 +615,7 @@ if($pc.domainJoined -eq "YES")
         log "Failed to unjoin $hostname from domain. Error: $message"
         log "Exiting script."
         [System.Windows.Forms.MessageBox]::Show("Failed to unjoin $hostname from domain. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Exit 1
     }
 }
 else
@@ -810,6 +812,7 @@ if($ppkg)
         log "Failed to install provisioning package. Error: $message"
         log "Exiting script."
         [System.Windows.Forms.MessageBox]::Show("Failed to install provisioning package. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Exit 1
     }
 }
 else
