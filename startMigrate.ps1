@@ -485,7 +485,7 @@ if($pc.mdm -eq $true)
         "HKLM:\SOFTWARE\Microsoft\EnterpriseResourceManager\Tracked\$($enrollID)",
         "HKLM:\SOFTWARE\Microsoft\PolicyManager\AdmxInstalled\$($enrollID)",
         "HKLM:\SOFTWARE\Microsoft\PolicyManager\Providers\$($enrollID)",
-        "HKLM:\SOFTWARE\Microsoft\Provinsioning\OMADM\Accounts\$($enrollID)",
+        "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Accounts\$($enrollID)",
         "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Logger\$($enrollID)",
         "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Sessions\$($enrollID)"
     )
