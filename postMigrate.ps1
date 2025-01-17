@@ -329,7 +329,7 @@ foreach($task in $tasks)
 
 # Remove MigrationUser
 log "Removing MigrationUser..."
-Remove-LocalUser -Name "MigrationInProgress" -Force
+Remove-LocalUser -Name "MigrationInProgress" -Confirm:$false
 log "MigrationUser removed."
 
 # End Transcript
