@@ -406,6 +406,7 @@ while($elapsedTime -lt $timeout)
 }
 if(Test-Path $newUserPath)
 {
+    log "New user info found at $newUserPath"
     $newUserInfo = Get-Content -Path "C:\Users\Public\Documents\newUserInfo.json" | ConvertFrom-JSON
 
     $newUser = @{
@@ -439,8 +440,21 @@ if(Test-Path $newUserPath)
 else
 {
     log "User not found.  Exiting script."
-    [System.Windows.Forms.MessageBox]::Show("Please enter the VM name and select the Windows 11 version", "Hyper Hyper-V", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    [System.Windows.Forms.MessageBox]::Show("New user cannot be found", "Migration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     exit 1
+}
+
+# Final check for new user SID
+$newUserSID = (Get-ItemProperty -Path "HKLM:\SOFTWARE\IntuneMigration" -Name "NEW_SID").NEW_SID
+if([string]::IsNullOrEmpty($newUserSID))
+{
+    log "New user SID not found.  Exiting script."
+    [System.Windows.Forms.MessageBox]::Show("New user SID not found", "Migration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    exit 1
+}
+else
+{
+    log "New user SID found: $newUserSID"
 }
 
 
