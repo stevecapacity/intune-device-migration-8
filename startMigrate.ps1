@@ -15,6 +15,10 @@ Steve Weiner
 #>
 $ErrorActionPreference = "SilentlyContinue"
 
+# Add assembly type for forms
+Add-Type -AssemblyName System.Windows.Forms
+
+
 # log function
 
 function Log {
