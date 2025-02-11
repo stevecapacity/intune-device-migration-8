@@ -154,8 +154,19 @@ switch ($CreateProfileReturn) {
 # Delete New profile
 log "Deleting new profile..."
 $newProfile = Get-CimInstance -ClassName Win32_UserProfile | Where-Object {$_.SID -eq $NEW_SID}
-Remove-CimInstance -InputObject $newProfile -Verbose | Out-Null
-log "New profile deleted."
+try 
+{
+    Remove-CimInstance -InputObject $newProfile -Verbose | Out-Null    
+    log "New profile deleted."
+}
+catch 
+{
+    $message = $_.Exception.Message
+    log "Failed to delete new profile: $message"
+    log "Exiting script..."
+    shutdown -r -t 05
+    exit 1
+}
 
 # Change ownership of user profile
 log "Changing ownership of user profile..."
@@ -164,8 +175,20 @@ $changes = @{
     NewOwnerSID = $NEW_SID
     Flags = 0
 }
-$currentProfile | Invoke-CimMethod -MethodName ChangeOwner -Arguments $changes
-Start-Sleep -Seconds 1
+
+try 
+{
+    $currentProfile | Invoke-CimMethod -MethodName ChangeOwner -Arguments $changes | Out-Null
+    log "User profile ownership changed."
+}
+catch 
+{
+    $message = $_.Exception.Message
+    log "Failed to change user profile ownership: $message"
+    log "Exiting script..."
+    shutdown -r -t 05
+    exit 1
+}
 
 # Cleanup logon cache
 function cleanupLogonCache()
