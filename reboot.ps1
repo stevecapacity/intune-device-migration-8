@@ -11,8 +11,20 @@ Steve Weiner
 Logan Lautt
 Jesse Weimer
 #>
-
 $ErrorActionPreference = "SilentlyContinue"
+
+# add message box function to script
+Add-Type -AssemblyName PresentationFramework
+function Show-MessageBox
+{
+    Param(
+        [string]$Message,
+        [string]$Title,
+        [System.Windows.MessageBoxButton]$Button = [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]$Icon = [System.Windows.MessageBoxImage]::Information
+    )
+    [System.Windows.MessageBox]::Show($Message, $Title, $Button, $Icon)
+}
 
 # log function
 function log()
@@ -136,34 +148,82 @@ $pathLen = $sb.Capacity
 try {
     $CreateProfileReturn = [UserProfile.Class]::CreateProfile($NEW_SID, $NEW_SAMName, $sb, $pathLen)
 } catch {
-    Write-Error $_.Exception.Message
+    Log $_.Exception.Message
 }
 
 switch ($CreateProfileReturn) {
     0 {
-        Write-Output "User profile created successfully at path: $($sb.ToString())"
+        Log "User profile created successfully at path: $($sb.ToString())"
     }
     -2147024713 {
-        Write-Output "User profile already exists."
+        Log "User profile already exists."
     }
     default {
-        throw "An error occurred when creating the user profile: $CreateProfileReturn"
+        Log "An error occurred when creating the user profile: $CreateProfileReturn"
+        # show message box
+        Show-MessageBox -Message "An error occurred when creating the user profile: $CreateProfileReturn" -Title "Error" -Icon "Error"
+        shutdown -r -t 05
+        exit 1
     }
 }
 
-# Delete New profile
-log "Deleting new profile..."
-$newProfile = Get-CimInstance -ClassName Win32_UserProfile | Where-Object {$_.SID -eq $NEW_SID}
-try 
+# Delete new user profile once created
+
+$maxRetries = 5
+$retryDelay = 10
+$attempt = 0
+$newProfile = $null
+
+while ($attempt -lt $maxRetries -and $null -eq $newProfile)
 {
-    Remove-CimInstance -InputObject $newProfile -Verbose | Out-Null    
-    log "New profile deleted."
+    $newProfile = Get-CimInstance -ClassName Win32_UserProfile | Where-Object { $_.SID -eq $NEW_SID }
+
+    if($null -eq $newProfile)
+    {
+        log "Profile not found yet, retrying in $retryDelay seconds..."
+        Start-Sleep -Seconds $retryDelay
+    }
+    $attempt++
 }
-catch 
+
+if($null -eq $newProfile)
 {
-    $message = $_.Exception.Message
-    log "Failed to delete new profile: $message"
-    log "Exiting script..."
+    log "Profile not found after $maxRetries attempts. Forcing registration..."
+    Start-Process -FilePath "C:\Windows\System32\runas.exe" -ArgumentList "/user:$NEW_SAMName cmd.exe /c exit" -NoNewWindow -Wait
+
+    $newProfile = Get-CimInstance -ClassName Win32_UserProfile | Where-Object { $_.SID -eq $NEW_SID }
+    if($null -eq $newProfile)
+    {
+        log "Profile still not found. Exiting script..."
+        # show message box
+        Show-MessageBox -Message "Profile still not found. Exiting script..." -Title "Error" -Icon "Error"
+        shutdown -r -t 05
+        exit 1
+    }
+}
+
+log "Profile found. Proceeding with deletion."
+
+# Ensure profile is not locked with active processes
+$processes = Get-CimInstance -ClassName Win32_Process | Where-Object { $_.SessionId -eq $NEW_SID}
+
+if($processes)
+{
+    log "Profile is currently in use by running processes.  Wainting 10 seconds before retrying deletion..."
+    Start-Sleep -Seconds 10
+}
+
+# Delete the user profile
+try
+{
+    Remove-CimInstance -InputObject $newProfile -Verbose | Out-Null
+    log "User profile deleted."
+}
+catch
+{
+    log "Failed to delete user profile: $($_.Exception.Message)"
+    # show message box
+    Show-MessageBox -Message "Failed to delete user profile: $($_.Exception.Message)" -Title "Error" -Icon "Error"
     shutdown -r -t 05
     exit 1
 }
@@ -186,6 +246,8 @@ catch
     $message = $_.Exception.Message
     log "Failed to change user profile ownership: $message"
     log "Exiting script..."
+    # show message box
+    Show-MessageBox -Message "Failed to change user profile ownership: $message" -Title "Error" -Icon "Error"
     shutdown -r -t 05
     exit 1
 }
