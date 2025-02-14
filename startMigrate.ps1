@@ -16,7 +16,18 @@ Steve Weiner
 $ErrorActionPreference = "SilentlyContinue"
 
 # Add assembly type for forms
-Add-Type -AssemblyName System.Windows.Forms
+# add message box function to script
+Add-Type -AssemblyName PresentationFramework
+function Show-MessageBox
+{
+    Param(
+        [string]$Message,
+        [string]$Title,
+        [System.Windows.MessageBoxButton]$Button = [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]$Icon = [System.Windows.MessageBoxImage]::Information
+    )
+    [System.Windows.MessageBox]::Show($Message, $Title, $Button, $Icon)
+}
 
 
 # log function
@@ -444,7 +455,8 @@ if(Test-Path $newUserPath)
 else
 {
     log "User not found.  Exiting script."
-    [System.Windows.Forms.MessageBox]::Show("New user cannot be found", "Migration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    # show message box
+    Show-MessageBox -Message "User not found.  Exiting script." -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
     exit 1
 }
 
@@ -453,7 +465,8 @@ $newUserSID = (Get-ItemProperty -Path "HKLM:\SOFTWARE\IntuneMigration" -Name "NE
 if([string]::IsNullOrEmpty($newUserSID))
 {
     log "New user SID not found.  Exiting script."
-    [System.Windows.Forms.MessageBox]::Show("New user SID not found", "Migration Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    # show message box
+    Show-MessageBox -Message "New user SID not found.  Exiting script." -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
     exit 1
 }
 else
@@ -549,7 +562,6 @@ foreach($task in $tasks)
             $message = $_.Exception.Message
             log "Failed to set $($task) task. Error: $message"
             log "Exiting script."
-            [System.Windows.Forms.MessageBox]::Show("Failed to set $($task) task. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             exit 1
         }
     }
@@ -569,7 +581,8 @@ if($pc.azureAdJoined -eq "YES")
         $message = $_.Exception.Message
         log "Failed to leave Azure AD. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to leave Azure AD. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        # show message box
+        Show-MessageBox -Message "Failed to leave Azure AD. Error: $message" -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
         Exit 1
     }
 }
@@ -632,7 +645,8 @@ if($pc.domainJoined -eq "YES")
         $message = $_.Exception.Message
         log "Failed to unjoin $hostname from domain. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to unjoin $hostname from domain. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        # show message box
+        Show-MessageBox -Message "Failed to unjoin $hostname from domain. Error: $message" -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
         Exit 1
     }
 }
@@ -763,7 +777,8 @@ if($config.SCCM -eq $true)
         $message = $_.Exception.Message
         log "Failed to remove SCCM client. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to remove SCCM client. Error :$message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        # show message box
+        Show-MessageBox -Message "Failed to remove SCCM client. Error: $message" -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
         Return
     }
 }
@@ -829,14 +844,16 @@ if($ppkg)
         $message = $_.Exception.Message
         log "Failed to install provisioning package. Error: $message"
         log "Exiting script."
-        [System.Windows.Forms.MessageBox]::Show("Failed to install provisioning package. Error: $message", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        # show message box
+        Show-MessageBox -Message "Failed to install provisioning package. Error: $message" -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
         Exit 1
     }
 }
 else
 {
     log "Provisioning package not found."
-    [System.Windows.Forms.MessageBox]::Show("Provisioning package not found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    # show message box
+    Show-MessageBox -Message "Provisioning package not found. Exiting script." -Title "Migration Error" -Button [System.Windows.MessageBoxButtons]::OK -Icon [System.Windows.MessageBoxIcon]::Error
 }
 
 # Set auto logon

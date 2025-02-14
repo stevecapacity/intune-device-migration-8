@@ -167,7 +167,7 @@ switch ($CreateProfileReturn) {
     }
 }
 
-# Delete new user profile once created
+# Check for new profile
 
 $maxRetries = 5
 $retryDelay = 10
@@ -191,6 +191,8 @@ if($null -eq $newProfile)
     log "Profile not found after $maxRetries attempts. Forcing registration..."
     Start-Process -FilePath "C:\Windows\System32\runas.exe" -ArgumentList "/user:$NEW_SAMName cmd.exe /c exit" -NoNewWindow -Wait
 
+    Start-Sleep -Seconds 3
+    
     $newProfile = Get-CimInstance -ClassName Win32_UserProfile | Where-Object { $_.SID -eq $NEW_SID }
     if($null -eq $newProfile)
     {
