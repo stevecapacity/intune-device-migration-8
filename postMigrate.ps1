@@ -331,8 +331,17 @@ foreach($task in $tasks)
 
 # Remove MigrationUser
 log "Removing MigrationUser..."
-Remove-LocalUser -Name "MigrationInProgress" -Confirm:$false
-log "MigrationUser removed."
+try 
+{
+    Remove-LocalUser -Name "MigrationInProgress" -Confirm:$false
+    log "MigrationUser removed."    
+}
+catch 
+{
+    $message = $_.Exception.Message
+    log "Error removing MigrationUser: $message"
+}
+
 
 # End Transcript
 log "Device migration complete"
