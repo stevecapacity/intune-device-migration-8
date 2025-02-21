@@ -355,6 +355,20 @@ else
 {
     log "NuGet package provider already installed."
 }
+
+# Remove AzureRM module if present
+$installedAzureRM = Get-InstalledModule -Name "AzureRM" -ErrorAction SilentlyContinue
+if($installedAzureRM)
+{
+    log "AzureRM module found.  Uninstalling..."
+    Uninstall-Module -Name "AzureRM" -Force
+    log "AzureRM module uninstalled successfully."
+}
+else
+{
+    log "AzureRM module not found."
+}
+
 # Check for Az.Accounts module
 $modules = ("Az.Accounts","RunAsUser")
 foreach($module in $modules)
@@ -371,13 +385,23 @@ foreach($module in $modules)
         log "$module module already installed."
     }
 }
+# get tenant ID from source or target tenant depending on which exists
+Copy-Item -Path "C:\ProgramData\IntuneMigration\config.json" -Destination "C:\Users\Public\Documents\config.json" -Force
 $scriptBlock = {
     Import-Module Az.Accounts
-
     #Get Token form OAuth
+    $config = Get-Content "C:\Users\Public\Documents\config.json" | ConvertFrom-JSON
+    if($config.targetTenant.$tenantId)
+    {
+        $tenantId = $config.targetTenant.tenantId
+    }
+    else
+    {
+        $tenantId = $config.sourceTenant.tenantId
+    }
     Clear-AzContext -Force
     Update-AzConfig -EnableLoginByWam $false -LoginExperienceV2 Off
-    Connect-AzAccount
+    Connect-AzAccount -TenantId $tenantId
     $theToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com/"
 
     #Get Token form OAuth
@@ -451,6 +475,7 @@ if(Test-Path $newUserPath)
     }
     Write-Host "User found. Continuing with script..."
     Remove-Item -Path $newUserPath -Force -Recurse
+    Remove-Item -Path "C:\Users\Public\Documents\config.json" -Force -Recurse
 }
 else
 {

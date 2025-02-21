@@ -5,12 +5,14 @@
     "sourceTenant": {
         "clientId":"<clientID>",
         "clientSecret":"<clientSecret>",
-        "tenantName":"<tenantName>"
+        "tenantName":"<tenantName>",
+        "tenantID":"<tenantID>"
     },
     "targetTenant":{
         "clientId":"<clientID>",
         "clientSecret":"<clientSecret>",
-        "tenantName":"<tenantName>"
+        "tenantName":"<tenantName>",
+        "tenantID":"<tenantID>"
     },
     "groupTag":"<groupTag>",
     "bitlocker":"<migrate/decrypt>",
