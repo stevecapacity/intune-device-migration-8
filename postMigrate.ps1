@@ -52,7 +52,6 @@ function msGraphAuthenticate()
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Authorization", $token)
     $headers.Add("Content-Type", "application/json")
-    $headers = @{'Authorization'="$($token)"}
     return $headers
 }
 
