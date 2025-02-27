@@ -9,7 +9,7 @@ USE
 Steve Weiner
 .CONTRIBUTORS
 Logan Lautt
-Jesse Weimer
+
 #>
 $ErrorActionPreference = "SilentlyContinue"
 
