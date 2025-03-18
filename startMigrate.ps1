@@ -592,7 +592,15 @@ if($pc.domainJoined -eq "YES")
 
     # Check for line of sight to domain controller
     $pingCount = 4
-    $pingResult = Test-Connection -TargetName $localDomain -Count $pingCount
+    # Check if PowerShell 5 vs 7 for Test-Connection
+    if($PSVersionTable.PSVersion.Major -eq 5)
+    {
+        $pingResult = Test-Connection -ComputerName $localDomain -Count $pingCount
+    }
+    else
+    {
+        $pingResult = Test-Connection -TargetName $localDomain -Count $pingCount
+    }
     if($pingResult.StatusCode -eq 0)
     {
         log "$($hostname) has line of sight to domain controller.  Attempting to break..."
