@@ -159,7 +159,7 @@ else
 if(![string]::IsNullOrEmpty($groupTag))
 {
     log "Updating group tag to $($groupTag) for Entra Device $($entraId)..."
-    $entraDeviceObject = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/devices/$entraId" -Headers $headers
+    $entraDeviceObject = Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/beta/devices/$entraId" -Headers $headers
     $physicalIds = $entraDeviceObject.physicalIds
     $newTag = "[OrderID]:$groupTag"
     $physicalIds += $newTag
