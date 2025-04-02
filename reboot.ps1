@@ -57,7 +57,7 @@ log "Reboot task disabled"
 
 # disable auto logon
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "AutoAdminLogon" -Value 0 -Verbose
-log "Auto logon enabled."
+log "Auto logon disabled."
 
 # set new wallpaper
 $wallpaper = (Get-ChildItem -Path $config.localPath -Filter "*.jpg" -Recurse).FullName
@@ -536,7 +536,6 @@ else
 
 
 
-
 # enable logon provider
 reg.exe add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{60b78e88-ead8-445c-9cfd-0b87f74ea6cd}" /v "Disabled" /t REG_DWORD /d 0 /f | Out-Host
 log "Enabled logon provider."
@@ -558,5 +557,3 @@ log "Lock screen caption set."
 log "Reboot.ps1 complete"
 Stop-Transcript
 shutdown -r -t 00
-
-
