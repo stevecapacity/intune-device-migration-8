@@ -359,6 +359,10 @@ foreach($module in $modules)
         log "$module module already installed."
     }
 }
+
+# Import modules
+Import-Module RunAsUser
+
 $scriptBlock = {
     Import-Module Az.Accounts
 
