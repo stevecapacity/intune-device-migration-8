@@ -1,0 +1,9 @@
+trigger:
+  none
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- script: echo "Parallelism granted - Microsoft-hosted agent is running!"
+  displayName: 'Test Hosted Agent'
