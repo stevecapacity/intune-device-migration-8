@@ -351,12 +351,31 @@ foreach($module in $modules)
     if(-not($installedModule))
     {
         log "$module module not installed.  Installing..."
-        Install-Module -Name $module -Force
-        log "$module module installed successfully."
+        if($module -eq "Az.Accounts")
+        {
+            Install-Module -Name $module -RequiredVersion "4.2.0" -Force
+            log "Az.Accounts module version 4.2.0 installed successfully."
+        }
+        else
+        {
+            Install-Module -Name $module -Force
+            log "$module module installed successfully."
+        }
     }
     else
     {
-        log "$module module already installed."
+        if($module -eq "Az.Accounts" -and $installedModule.Version -ge "5.0.0")
+        {
+            log "Uninstalling newer version of $($module)..."
+            Uninstall-Module -Name $Module -AllVersions -Force
+            log "Installing $($module) version 4.2.0..."
+            Install-Module -Name $modules -RequiredVersion "4.2.0" -Force
+            log "Az.Accounts module version 4.2.0 installed successfully."
+        }
+        else
+        {
+            log "$module module already installed."
+        }
     }
 }
 $scriptBlock = {
