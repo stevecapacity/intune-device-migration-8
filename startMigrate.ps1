@@ -378,6 +378,10 @@ foreach($module in $modules)
         }
     }
 }
+
+# Import modules
+Import-Module RunAsUser
+
 $scriptBlock = {
     Import-Module Az.Accounts
 
