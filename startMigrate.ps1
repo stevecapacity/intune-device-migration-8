@@ -369,7 +369,7 @@ foreach($module in $modules)
             log "Uninstalling newer version of $($module)..."
             Uninstall-Module -Name $Module -AllVersions -Force
             log "Installing $($module) version 4.2.0..."
-            Install-Module -Name $modules -RequiredVersion "4.2.0" -Force
+            Install-Module -Name $module -RequiredVersion "4.2.0" -Force
             log "Az.Accounts module version 4.2.0 installed successfully."
         }
         else
